@@ -49,6 +49,7 @@ const client = new MongoClient(uri, {
 async function run() {
   const db = client.db("plantNet-session");
   const userCollection = db.collection("users");
+  const plantsCollection = db.collection("plants");
 
   try {
     // Generate jwt token
@@ -94,6 +95,19 @@ async function run() {
         role: "Customer",
         timestamp: Date.now(),
       });
+      res.send(result);
+    });
+
+    //save a plant data in db
+    app.post("/plants", verifyToken, async (req, res) => {
+      const plant = req.body;
+      const result = await plantsCollection.insertOne(plant);
+      res.send(result);
+    });
+
+    //get all plants from db
+    app.get("/plants", async (req, res) => {
+      const result = await plantsCollection.find().toArray();
       res.send(result);
     });
 
