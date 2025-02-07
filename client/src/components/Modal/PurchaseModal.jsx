@@ -6,14 +6,61 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import Button from "../Shared/Button/Button";
 import useAuth from "../../hooks/useAuth";
+import toast from "react-hot-toast";
+import useAxiosSecure from "../../hooks/useAxiosSecure";
 
 const PurchaseModal = ({ closeModal, isOpen, plant }) => {
+  const axiosSecure = useAxiosSecure();
+  const { name, category, price, quantity, _id, seiler } = plant;
   const { user } = useAuth();
-  const { name, category, price, address } = plant;
-  // Total Price Calculation
+  const [totalQuantity, setTotalQuantity] = useState(1);
+  const [totalPrice, setTotalPrice] = useState(price);
+  const [purchaseInfo, setPurchaseInfo] = useState({
+    customer: {
+      name: user?.displayName,
+      email: user?.email,
+      image: user?.photoURL,
+    },
+
+    plantId: _id,
+    price: totalPrice,
+    quantity: totalQuantity,
+    seiler: seiler?.email,
+    address: "",
+    status: "Pending",
+  });
+
+  const handleQuantity = (value) => {
+    if (value > quantity) {
+      setTotalQuantity(quantity);
+      return toast.error("Quantity exceeds available stock!");
+    }
+
+    if (value < 0) {
+      setTotalQuantity(1);
+      return toast.error("Quantity cnnnot be less than 1");
+    }
+    setTotalQuantity(value);
+    setTotalPrice(value * price);
+
+    setPurchaseInfo((prv) => {
+      return { ...prv, quantity: value, price: value * price };
+    });
+  };
+
+  const handlePurchase = async () => {
+    try {
+      await axiosSecure.post("/order", purchaseInfo);
+      toast.success("Order Successfull!");
+    } catch (err) {
+      console.log(err);
+    } finally {
+      closeModal();
+    }
+  };
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={closeModal}>
@@ -64,19 +111,20 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
                 </div>
                 <div className="mt-2">
                   <p className="text-sm text-gray-500">
-                    Available address: {address}
+                    Available Quantity: {quantity}
                   </p>
                 </div>
                 {/* address input field */}
                 <div className="space-x-2 text-sm">
-                  <label htmlFor="address" className="text-gray-600">
-                    address:
+                  <label htmlFor="quantity" className="text-gray-600">
+                    Quantity:
                   </label>
                   <input
-                    max={address}
+                    value={totalQuantity}
+                    onChange={(e) => handleQuantity(parseInt(e.target.value))}
                     className=" px-2 py-3 text-gray-800 border border-lime-300 focus:outline-lime-500 rounded-md bg-white"
-                    name="address"
-                    id="address"
+                    name="quantity"
+                    id="quantity"
                     type="number"
                     placeholder="Available address"
                     required
@@ -91,13 +139,21 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
                     className=" px-2 py-3 text-gray-800 border border-lime-300 focus:outline-lime-500 rounded-md bg-white"
                     name="address"
                     id="address"
-                    type="number"
+                    onChange={(e) =>
+                      setPurchaseInfo((prv) => {
+                        return { ...prv, address: e.target.value };
+                      })
+                    }
+                    type="text"
                     placeholder="Shiping address..."
                     required
                   />
                 </div>
 
-                <Button label={"Purchase"} />
+                <Button
+                  onClick={handlePurchase}
+                  label={`pay ${totalPrice} $`}
+                />
               </DialogPanel>
             </TransitionChild>
           </div>
