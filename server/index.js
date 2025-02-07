@@ -106,14 +106,6 @@ async function run() {
       res.send(result);
     });
 
-    //save plant order data in db
-    app.post("/order", verifyToken, async (req, res) => {
-      const orderInfo = req.body;
-      console.log(orderInfo);
-      const result = await orderCollection.insertOne(orderInfo);
-      res.send(result);
-    });
-
     //get all plants from db
     app.get("/plants", async (req, res) => {
       const result = await plantsCollection.find().toArray();
@@ -125,6 +117,89 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await plantsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //save plant order data in db
+    app.post("/order", verifyToken, async (req, res) => {
+      const orderInfo = req.body;
+      const result = await orderCollection.insertOne(orderInfo);
+      res.send(result);
+    });
+    // manage plant quantity
+    app.patch("/plants/quantity/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const { quantityToUpdate, status } = req.body;
+      const filter = { _id: new ObjectId(id) };
+      let updatedoc = {
+        $inc: {
+          quantity: -quantityToUpdate,
+        },
+      };
+      if (status === "increase") {
+        updatedoc = {
+          $inc: {
+            quantity: quantityToUpdate,
+          },
+        };
+      }
+      const result = await plantsCollection.updateOne(filter, updatedoc);
+      res.send(result);
+    });
+
+    // get all order for a specific customer
+    app.get("/customer-orders/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { "customer.email": email };
+      const result = await orderCollection
+        .aggregate([
+          {
+            $match: query,
+          },
+          {
+            $addFields: {
+              plantId: { $toObjectId: "$plantId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "plants",
+              localField: "plantId",
+              foreignField: "_id",
+              as: "plants",
+            },
+          },
+          {
+            $unwind: "$plants",
+          },
+          {
+            $addFields: {
+              name: "$plants.name",
+              image: "$plants.image",
+              category: "$plants.category",
+            },
+          },
+          {
+            $project: {
+              plants: 0,
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
+    //Cancel/delete an order
+    app.delete("/orders/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const order = await orderCollection.findOne(query);
+      if (order.status === "Delivered") {
+        return res
+          .status(409)
+          .send("Cannot cancel once the product id delivered");
+      }
+      const result = await orderCollection.deleteOne(query);
       res.send(result);
     });
 
