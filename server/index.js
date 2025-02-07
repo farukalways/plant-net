@@ -50,6 +50,7 @@ async function run() {
   const db = client.db("plantNet-session");
   const userCollection = db.collection("users");
   const plantsCollection = db.collection("plants");
+  const orderCollection = db.collection("orders");
 
   try {
     // Generate jwt token
@@ -102,6 +103,14 @@ async function run() {
     app.post("/plants", verifyToken, async (req, res) => {
       const plant = req.body;
       const result = await plantsCollection.insertOne(plant);
+      res.send(result);
+    });
+
+    //save plant order data in db
+    app.post("/order", verifyToken, async (req, res) => {
+      const orderInfo = req.body;
+      console.log(orderInfo);
+      const result = await orderCollection.insertOne(orderInfo);
       res.send(result);
     });
 
