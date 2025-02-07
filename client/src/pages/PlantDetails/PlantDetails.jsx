@@ -16,7 +16,7 @@ const PlantDetails = () => {
   };
 
   const { id } = useParams();
-  const { data: plant = [] } = useQuery({
+  const { data: plant = {}, refetch } = useQuery({
     queryKey: ["plant", id],
     queryFn: async () => {
       const { data } = await axios.get(
@@ -107,6 +107,7 @@ const PlantDetails = () => {
             plant={plant}
             closeModal={closeModal}
             isOpen={isOpen}
+            refetch={refetch}
           />
         </div>
       </div>
